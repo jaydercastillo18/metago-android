@@ -31,6 +31,7 @@ import java.util.Locale
 
 class PremiumActivity : ComponentActivity() {
  private val prefs by lazy { getSharedPreferences("meta",0) }
+ private var dark by mutableStateOf(false)
  private val emerald=Color(0xFF087A55)
  private val petrol=Color(0xFF102D35)
  private val gold=Color(0xFFF4C76B)
@@ -38,10 +39,11 @@ class PremiumActivity : ComponentActivity() {
  private fun amount(s:String)=runCatching { s.replace(',','.').toBigDecimal().movePointRight(2).longValueExact() }.getOrDefault(0)
  override fun onCreate(savedInstanceState:Bundle?) {
  super.onCreate(savedInstanceState)
+ dark=prefs.getBoolean("darkMode",false)
  window.decorView.systemUiVisibility=android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
  Reminder.schedule(this)
  if(android.os.Build.VERSION.SDK_INT>=33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS")!=0) requestPermissions(arrayOf("android.permission.POST_NOTIFICATIONS"),1)
- setContent { MaterialTheme(colorScheme=lightColorScheme(primary=emerald,background=Color(0xFFF8F6EF),surface=Color.White,onSurface=petrol)){ Dashboard() } }
+ setContent { MaterialTheme(colorScheme=if(dark)darkColorScheme(primary=Color(0xFF82DBAC),background=Color(0xFF101E20),surface=Color(0xFF203436),onSurface=Color(0xFFF8F6EF)) else lightColorScheme(primary=emerald,background=Color(0xFFF8F6EF),surface=Color.White,onSurface=petrol)){ SideEffect{window.decorView.systemUiVisibility=if(dark)0 else android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR}; Dashboard() } }
  }
  override fun onResume(){super.onResume();Reminder.schedule(this)}
  @Composable private fun Dashboard(){
@@ -62,33 +64,34 @@ class PremiumActivity : ComponentActivity() {
  val progress by animateFloatAsState((total.toFloat()/goal.coerceAtLeast(1)).coerceIn(0f,1f),tween(850),label="progress")
  fun save(){records=list.toString();prefs.edit().putString("entries",records).apply()}
  if(intro){ Column(Modifier.fillMaxSize().background(petrol).systemBarsPadding().padding(32.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Text("🌱",fontSize=100.sp);Text("MetaGO",color=gold,fontSize=48.sp,fontWeight=FontWeight.Bold);Text("Pequeños pasos, grandes sueños.",color=Color.White,fontSize=20.sp);Spacer(Modifier.height(32.dp));Button(onClick={prefs.edit().putBoolean("premiumIntro",true).apply();intro=false}){Text("Comenzar mi aventura")}};return }
- Scaffold(containerColor=Color(0xFFF8F6EF)){ padding ->
+ Scaffold(containerColor=MaterialTheme.colorScheme.background){ padding ->
  Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
- Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("🌱 MetaGO",fontSize=30.sp,fontWeight=FontWeight.Bold,color=petrol);Text("Construye tu futuro",color=emerald)};TextButton(onClick={entry=(goal/100.0).toString();second=(daily/100.0).toString();dialog="settings"}){Text("Ajustes")}}
+ Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("🌱 MetaGO",fontSize=30.sp,fontWeight=FontWeight.Bold,color=MaterialTheme.colorScheme.onSurface);Text("Construye tu futuro",color=MaterialTheme.colorScheme.primary)};TextButton(onClick={entry=(goal/100.0).toString();second=(daily/100.0).toString();dialog="settings"}){Text("Ajustes")}}
  Card(colors=CardDefaults.cardColors(containerColor=petrol),shape=RoundedCornerShape(30.dp)){Column(Modifier.fillMaxWidth().padding(24.dp),horizontalAlignment=Alignment.CenterHorizontally){Text("MI META PERSONAL",color=gold,fontWeight=FontWeight.Bold);Spacer(Modifier.height(18.dp));Box(Modifier.size(180.dp),contentAlignment=Alignment.Center){CircularProgressIndicator(progress={progress},modifier=Modifier.fillMaxSize(),color=Color(0xFF34D399),trackColor=Color(0xFF28515A),strokeWidth=12.dp);Column(horizontalAlignment=Alignment.CenterHorizontally){Text("Has ahorrado",color=Color.White);Text(money(total),fontSize=30.sp,fontWeight=FontWeight.Bold,color=Color.White);Text(String.format("%.1f%%",progress*100),color=gold)}};Spacer(Modifier.height(18.dp));Text("Objetivo  "+money(goal),color=Color.White,fontSize=20.sp);Text("Faltan "+money(remaining),color=gold)}}
- Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){Card(Modifier.weight(1f),colors=CardDefaults.cardColors(containerColor=Color(0xFFE4F2E8))){Column(Modifier.padding(16.dp)){Text("Aporte diario");Text(money(daily),fontSize=23.sp,fontWeight=FontWeight.Bold)}};Card(Modifier.weight(1f),colors=CardDefaults.cardColors(containerColor=Color(0xFFF5E9CE))){Column(Modifier.padding(16.dp)){Text("Días estimados");Text(((remaining+daily-1)/daily.coerceAtLeast(1)).toString(),fontSize=26.sp,fontWeight=FontWeight.Bold)}}}
+ Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){Card(Modifier.weight(1f),colors=CardDefaults.cardColors(containerColor=if(dark)Color(0xFF203F35) else Color(0xFFE4F2E8))){Column(Modifier.padding(16.dp)){Text("Aporte diario");Text(money(daily),fontSize=23.sp,fontWeight=FontWeight.Bold)}};Card(Modifier.weight(1f),colors=CardDefaults.cardColors(containerColor=if(dark)Color(0xFF493D26) else Color(0xFFF5E9CE))){Column(Modifier.padding(16.dp)){Text("Días estimados");Text(((remaining+daily-1)/daily.coerceAtLeast(1)).toString(),fontSize=26.sp,fontWeight=FontWeight.Bold)}}}
  Button(onClick={editIndex=-1;entry=(daily/100.0).toString();dialog="deposit"},modifier=Modifier.fillMaxWidth().height(58.dp),shape=RoundedCornerShape(18.dp)){Text("＋ Registrar mi ahorro",fontSize=18.sp)}
  OutlinedButton(onClick={dialog="reminder"},modifier=Modifier.fillMaxWidth()){Text("🔔 Recordatorio · "+reminder)}
- Text("Fecha estimada: "+LocalDate.now().plusDays((((remaining+daily-1)/daily.coerceAtLeast(1))-1).coerceAtLeast(0)).format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),color=emerald)
+ Text("Fecha estimada: "+LocalDate.now().plusDays((((remaining+daily-1)/daily.coerceAtLeast(1))-1).coerceAtLeast(0)).format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),color=MaterialTheme.colorScheme.primary)
  val today=LocalDate.now()
  val dates=(0 until list.length()).map{list.getJSONObject(it).optString("date")}.toSet()
  val todayAmount=(0 until list.length()).filter{list.getJSONObject(it).optString("date")==today.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))}.sumOf{list.getJSONObject(it).optLong("amount")}
  Text("Hoy: "+money(todayAmount)+" de "+money(daily),fontWeight=FontWeight.Bold)
  LinearProgressIndicator(progress={(todayAmount.toFloat()/daily.coerceAtLeast(1)).coerceIn(0f,1f)},modifier=Modifier.fillMaxWidth())
  Text("Tu semana de ahorro",fontSize=22.sp,fontWeight=FontWeight.Bold)
- Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){for(i in 6 downTo 0){val day=today.minusDays(i.toLong());val done=dates.contains(day.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));Column(horizontalAlignment=Alignment.CenterHorizontally){Text(day.dayOfMonth.toString());Text(if(done)"✓" else "○",color=emerald,fontSize=24.sp)}}}
+ Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){for(i in 6 downTo 0){val day=today.minusDays(i.toLong());val done=dates.contains(day.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));Column(horizontalAlignment=Alignment.CenterHorizontally){Text(day.dayOfMonth.toString());Text(if(done)"✓" else "○",color=MaterialTheme.colorScheme.primary,fontSize=24.sp)}}}
 
  val fmt=DateTimeFormatter.ofPattern("dd/MM/yyyy")
  var streak=0
  var cursor=if(dates.contains(today.format(fmt)))today else today.minusDays(1)
  while(dates.contains(cursor.format(fmt))){streak++;cursor=cursor.minusDays(1)}
- Card(colors=CardDefaults.cardColors(containerColor=Color(0xFFF5E9CE)),modifier=Modifier.fillMaxWidth()){Column(Modifier.padding(16.dp)){Text("Tu racha de ahorro",fontWeight=FontWeight.Bold);Text("🔥 "+streak+" días consecutivos",fontSize=24.sp);Text("Cada día con un aporte cuenta.")}}
+ Card(colors=CardDefaults.cardColors(containerColor=if(dark)Color(0xFF493D26) else Color(0xFFF5E9CE)),modifier=Modifier.fillMaxWidth()){Column(Modifier.padding(16.dp)){Text("Tu racha de ahorro",fontWeight=FontWeight.Bold);Text("🔥 "+streak+" días consecutivos",fontSize=24.sp);Text("Cada día con un aporte cuenta.")}}
  Row(verticalAlignment=Alignment.CenterVertically){Text("Sonidos de celebración",Modifier.weight(1f));Switch(effects,{effects=it;prefs.edit().putBoolean("effects",it).apply()})}
  Text("Tus recompensas",fontSize=23.sp,fontWeight=FontWeight.Bold)
  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){listOf(100,500,1000,2000).forEach{n->Column(horizontalAlignment=Alignment.CenterHorizontally){Text(if(total>=n*100L)"🏆" else "🔒",fontSize=32.sp);Text("S/ "+n,fontSize=12.sp)}}}
+ Row(verticalAlignment=Alignment.CenterVertically){Text("Modo oscuro",Modifier.weight(1f));Switch(dark,{dark=it;prefs.edit().putBoolean("darkMode",it).apply()})}
  Text("Historial de ahorro",fontSize=23.sp,fontWeight=FontWeight.Bold)
  if(list.length()==0)Text("Tu primer depósito empieza una gran historia.")
- for(i in list.length()-1 downTo 0){val o=list.getJSONObject(i);Card(Modifier.fillMaxWidth().clickable{editIndex=i;entry=(o.optLong("amount")/100.0).toString();dialog="deposit"}){Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically){Text(o.optString("date"),Modifier.weight(1f));Text("+ "+money(o.optLong("amount")),color=emerald,fontWeight=FontWeight.Bold)}}}
+ for(i in list.length()-1 downTo 0){val o=list.getJSONObject(i);Card(Modifier.fillMaxWidth().clickable{editIndex=i;entry=(o.optLong("amount")/100.0).toString();dialog="deposit"}){Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically){Text(o.optString("date"),Modifier.weight(1f));Text("+ "+money(o.optLong("amount")),color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold)}}}
  Text("Registro manual · No realiza transferencias",fontSize=12.sp)
  }}
  if(celebration.isNotEmpty()){AlertDialog(onDismissRequest={celebration=""},title={Text("🏆 ¡Nuevo logro!")},text={Column(horizontalAlignment=Alignment.CenterHorizontally){val bounce=remember{Animatable(0.3f)};LaunchedEffect(Unit){bounce.animateTo(1f,spring(dampingRatio=Spring.DampingRatioMediumBouncy))};val scale=bounce.value;Text("🎉",fontSize=(64*scale).sp);Text(celebration,fontSize=22.sp,fontWeight=FontWeight.Bold);Text("Tu esfuerzo está dando frutos.")}},confirmButton={TextButton(onClick={celebration=""}){Text("¡Genial!")}})}
@@ -105,7 +108,7 @@ class PremiumActivity : ComponentActivity() {
  fun save(){prefs.edit().putInt("hour",h).putInt("minute",m).putBoolean("reminderEnabled",enabled).putBoolean("reminderSound",sound).putBoolean("reminderVibration",vibration).apply();Reminder.schedule(this)}
  AlertDialog(onDismissRequest=onClose,title={Text("Mi recordatorio diario")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)){
  Text("Una vez al día, hasta completar tu meta.")
- Text(clock(h,m),fontSize=36.sp,fontWeight=FontWeight.Bold,color=emerald)
+ Text(clock(h,m),fontSize=36.sp,fontWeight=FontWeight.Bold,color=MaterialTheme.colorScheme.primary)
  Text("AM: medianoche a mediodía · PM: mediodía a medianoche")
  OutlinedButton(onClick={TimePickerDialog(this@PremiumActivity,{_,hh,mm->h=hh;m=mm},h,m,false).show()}){Text("Cambiar hora")}
  Row(verticalAlignment=Alignment.CenterVertically){Text("Activar recordatorio",Modifier.weight(1f));Switch(enabled,{enabled=it})}
