@@ -43,6 +43,7 @@ class PremiumActivity : ComponentActivity() {
  if(android.os.Build.VERSION.SDK_INT>=33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS")!=0) requestPermissions(arrayOf("android.permission.POST_NOTIFICATIONS"),1)
  setContent { MaterialTheme(colorScheme=lightColorScheme(primary=emerald,background=Color(0xFFF8F6EF),surface=Color.White,onSurface=petrol)){ Dashboard() } }
  }
+ override fun onResume(){super.onResume();Reminder.schedule(this)}
  @Composable private fun Dashboard(){
  var records by remember { mutableStateOf(prefs.getString("entries","[]") ?: "[]") }
  var goal by remember { mutableStateOf(prefs.getLong("goal",200000)) }
@@ -69,6 +70,9 @@ class PremiumActivity : ComponentActivity() {
  Text("Fecha estimada: "+LocalDate.now().plusDays((((remaining+daily-1)/daily.coerceAtLeast(1))-1).coerceAtLeast(0)).format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),color=emerald)
  val today=LocalDate.now()
  val dates=(0 until list.length()).map{list.getJSONObject(it).optString("date")}.toSet()
+ val todayAmount=(0 until list.length()).filter{list.getJSONObject(it).optString("date")==today.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))}.sumOf{list.getJSONObject(it).optLong("amount")}
+ Text("Hoy: "+money(todayAmount)+" de "+money(daily),fontWeight=FontWeight.Bold)
+ LinearProgressIndicator(progress={(todayAmount.toFloat()/daily.coerceAtLeast(1)).coerceIn(0f,1f)},modifier=Modifier.fillMaxWidth())
  Text("Tu semana de ahorro",fontSize=22.sp,fontWeight=FontWeight.Bold)
  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){for(i in 6 downTo 0){val day=today.minusDays(i.toLong());val done=dates.contains(day.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));Column(horizontalAlignment=Alignment.CenterHorizontally){Text(day.dayOfMonth.toString());Text(if(done)"✓" else "○",color=emerald,fontSize=24.sp)}}}
 
@@ -93,7 +97,7 @@ class PremiumActivity : ComponentActivity() {
  AlertDialog(onDismissRequest=onClose,title={Text("Mi recordatorio diario")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)){
  Text("Una vez al día, hasta completar tu meta.")
  Text(clock(h,m),fontSize=36.sp,fontWeight=FontWeight.Bold,color=emerald)
- Text("AM: mañana · PM: tarde y noche")
+ Text("AM: medianoche a mediodía · PM: mediodía a medianoche")
  OutlinedButton(onClick={TimePickerDialog(this@PremiumActivity,{_,hh,mm->h=hh;m=mm},h,m,false).show()}){Text("Cambiar hora")}
  Row(verticalAlignment=Alignment.CenterVertically){Text("Activar recordatorio",Modifier.weight(1f));Switch(enabled,{enabled=it})}
  Row(verticalAlignment=Alignment.CenterVertically){Text("Sonido",Modifier.weight(1f));Switch(sound,{sound=it})}
