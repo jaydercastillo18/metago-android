@@ -1,0 +1,1 @@
+package pe.metago;import android.content.*;public class Boot extends BroadcastReceiver{public void onReceive(Context c,Intent i){Reminder.schedule(c);}}
